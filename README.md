@@ -1,4 +1,4 @@
-# Tetris 
+# Tetris - Dark Night Theme
 
 ## Description
 This is a simple Tetris game built using the **raylib** library. It features a **dark night theme** with neon-colored tetrominoes and a minimalistic UI.
@@ -60,6 +60,8 @@ After compilation, run the executable:
 - A **2D array** (`grid[rows][cols]`) keeps track of placed blocks.
 - The game state updates at a regular interval to handle falling pieces.
 
+---
+
 ### Tetrominoes & Movement
 - Each tetromino is stored as a **vector of relative block positions**.
 - The **`Piece` structure** holds the current tetromino and its position.
@@ -67,10 +69,14 @@ After compilation, run the executable:
 - Pieces can **move left, right, down, or rotate** if space allows.
 - The game includes a function to **rotate tetrominoes** while handling wall collisions.
 
+---
+
 ### Line Clearing & Scoring
 - When a row is **completely filled**, it is cleared and blocks above it shift down.
 - Score is increased by **100 points per cleared line**.
 - Multiple cleared lines in a row result in bonus points.
+
+---
 
 ### Random Tetromino Selection
 - Pieces are randomly selected from a predefined **array of tetrominoes**.
@@ -91,4 +97,7 @@ This project is open-source under the **MIT License**. Feel free to modify and d
 - Adding multiplayer functionality
 - Saving high scores and game progress
 - Implementing custom themes and color schemes
+
+## Screenshots
+*(Add screenshots here if needed)*
 
