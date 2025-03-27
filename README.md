@@ -97,7 +97,3 @@ This project is open-source under the **MIT License**. Feel free to modify and d
 - Adding multiplayer functionality
 - Saving high scores and game progress
 - Implementing custom themes and color schemes
-
-## Screenshots
-*(Add screenshots here if needed)*
-
