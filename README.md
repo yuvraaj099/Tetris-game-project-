@@ -1,4 +1,4 @@
-# Tetris - Dark Night Theme
+
 
 ## Description
 This is a simple Tetris game built using the **raylib** library. It features a **dark night theme** with neon-colored tetrominoes and a minimalistic UI.
