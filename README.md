@@ -26,7 +26,7 @@ This is a simple Tetris game built using the **raylib** library. It features a *
 - **Down Arrow (S)**: Move piece down faster
 - **Enter (⏎)**: Restart game after game over
 - **Escape (Esc)**: Exit the game instantly
-- **HardDrop (' '-spacebar): for hard drop
+- HardDrop (' '-spacebar): for hard drop
 
 ## Installation & Compilation
 ### Prerequisites
