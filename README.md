@@ -20,12 +20,13 @@ This is a simple Tetris game built using the **raylib** library. It features a *
 - Simple yet visually appealing design
 
 ## Controls
-- **Left Arrow (←)**: Move piece left
-- **Right Arrow (→)**: Move piece right
-- **Up Arrow (↑)**: Rotate piece
-- **Down Arrow (↓)**: Move piece down faster
+- **Left Arrow (A)**: Move piece left
+- **Right Arrow (D)**: Move piece right
+- **Up Arrow (W)**: Rotate piece
+- **Down Arrow (S)**: Move piece down faster
 - **Enter (⏎)**: Restart game after game over
 - **Escape (Esc)**: Exit the game instantly
+- **HardDrop (' '-spacebar): for hard drop
 
 ## Installation & Compilation
 ### Prerequisites
