@@ -1,174 +1,203 @@
-#include "raylib.h"
+#include <iostream>
 #include <vector>
+#include <cstdlib>
+#include <ctime>
+#include <ncurses.h>
+#include <unistd.h>
 
-const int cols = 10, rows = 20;
-const int blockSize = 30;
-const int screenWidth = cols * blockSize + 200; // Extra space for UI panel
-const int screenHeight = rows * blockSize;
+const int WIDTH = 10, HEIGHT = 20;
 
-// Dark Night Theme Colors
-Color backgroundColor = {10, 10, 20, 255}; // Dark blue-black
-Color gridColor = {50, 50, 80, 100};       // Subtle grid
-Color textColor = {0, 255, 255, 255};      // Neon cyan
+struct Vector2 { int x, y; };
 
-// Vector2i for handling positions
-struct Vector2i { int x, y; };
-
-// Tetromino shapes
 struct Tetromino {
-    std::vector<Vector2i> shape;
-    Color color;
+    std::vector<Vector2> shape;
+    Vector2 pos;
+    int color;
 };
 
-// Tetrominoes with a neon glow effect
 Tetromino tetrominoes[7] = {
-    {{{0, 0}, {1, 0}, {2, 0}, {3, 0}}, {0, 255, 255, 255}},  // I - Cyan
-    {{{0, 0}, {0, 1}, {1, 0}, {1, 1}}, {255, 255, 0, 255}},  // O - Yellow
-    {{{0, 0}, {1, 0}, {2, 0}, {1, 1}}, {128, 0, 255, 255}},  // T - Purple
-    {{{0, 0}, {1, 0}, {1, 1}, {2, 1}}, {0, 255, 0, 255}},    // S - Green
-    {{{1, 0}, {2, 0}, {0, 1}, {1, 1}}, {255, 165, 0, 255}},  // Z - Orange
-    {{{0, 0}, {0, 1}, {1, 1}, {2, 1}}, {255, 0, 0, 255}},    // L - Red
-    {{{2, 0}, {0, 1}, {1, 1}, {2, 1}}, {0, 191, 255, 255}}   // J - Blue
+    {{{0, 0}, {1, 0}, {2, 0}, {3, 0}}, {3, 0}, COLOR_CYAN},   // I
+    {{{0, 0}, {0, 1}, {1, 0}, {1, 1}}, {4, 0}, COLOR_YELLOW}, // O
+    {{{0, 0}, {1, 0}, {2, 0}, {1, 1}}, {4, 0}, COLOR_MAGENTA},// T
+    {{{0, 0}, {1, 0}, {1, 1}, {2, 1}}, {4, 0}, COLOR_GREEN},  // S
+    {{{1, 0}, {2, 0}, {0, 1}, {1, 1}}, {4, 0}, COLOR_RED},    // Z
+    {{{0, 0}, {0, 1}, {0, 2}, {1, 2}}, {4, 0}, COLOR_BLUE},   // L
+    {{{1, 0}, {1, 1}, {1, 2}, {0, 2}}, {4, 0}, COLOR_WHITE}   // J
 };
 
-// Grid & Game State
-int grid[rows][cols] = {0};
-struct Piece {
-    Tetromino shape;
-    Vector2i pos;
-
-    bool CheckCollision(int dx, int dy) {
-        for (auto& block : shape.shape) {
-            int x = pos.x + block.x + dx;
-            int y = pos.y + block.y + dy;
-            if (x < 0 || x >= cols || y >= rows || (y >= 0 && grid[y][x])) return true;
-        }
-        return false;
-    }
-
-    void Move(int dx, int dy) {
-        if (!CheckCollision(dx, dy)) pos.x += dx, pos.y += dy;
-    }
-
-    void Rotate() {
-        std::vector<Vector2i> newShape;
-        for (auto& block : shape.shape) newShape.push_back({-block.y, block.x});
-        auto oldShape = shape.shape;
-        shape.shape = newShape;
-        if (CheckCollision(0, 0)) shape.shape = oldShape;
-    }
-
-    void Place() {
-        for (auto& block : shape.shape) {
-            int x = pos.x + block.x, y = pos.y + block.y;
-            if (y >= 0) grid[y][x] = 1;
-        }
-    }
-};
-
-Piece currentPiece, nextPiece;
+int grid[HEIGHT][WIDTH] = {0};
+Tetromino current, nextTetromino;
 bool gameOver = false;
 int score = 0;
+int level = 1;
+int fallSpeed = 500000;
+time_t lastDropTime;
 
-void SpawnPiece() {
-    currentPiece = nextPiece;
-    nextPiece.shape = tetrominoes[GetRandomValue(0, 6)];
-    nextPiece.pos = {cols + 1, 5}; // Position for UI preview
-    currentPiece.pos = {cols / 2 - 1, 0};
-    if (currentPiece.CheckCollision(0, 0)) gameOver = true;
+void InitGame() {
+    srand(time(0));
+    initscr();
+    start_color();
+    noecho();
+    curs_set(0);
+    timeout(1);
+
+    for (int i = 1; i <= 7; i++) {
+        init_pair(i, i, COLOR_BLACK);
+    }
+    init_pair(8, COLOR_RED, COLOR_BLACK);
+
+    current = tetrominoes[rand() % 7];
+    current.pos = {3, 0};
+    nextTetromino = tetrominoes[rand() % 7]; // Initialize the next piece
+    lastDropTime = time(0);
+}
+
+bool Collision(int dx, int dy) {
+    for (auto& block : current.shape) {
+        int x = current.pos.x + block.x + dx;
+        int y = current.pos.y + block.y + dy;
+        if (x < 0 || x >= WIDTH || y >= HEIGHT || (y >= 0 && grid[y][x])) return true;
+    }
+    return false;
+}
+
+void MovePiece(int dx, int dy) {
+    if (!Collision(dx, dy)) current.pos.x += dx, current.pos.y += dy;
+}
+
+void HardDrop() {
+    while (!Collision(0, 1)) MovePiece(0, 1);
+}
+
+void RotatePiece() {
+    std::vector<Vector2> rotated;
+    for (auto& block : current.shape) {
+        rotated.push_back({-block.y, block.x});
+    }
+    Tetromino rotatedTetromino = {rotated, current.pos, current.color};
+    bool canRotate = true;
+    for (auto& block : rotated) {
+        int x = rotatedTetromino.pos.x + block.x;
+        int y = rotatedTetromino.pos.y + block.y;
+        if (x < 0 || x >= WIDTH || y >= HEIGHT || (y >= 0 && grid[y][x])) {
+            canRotate = false;
+            break;
+        }
+    }
+    if (canRotate) current.shape = rotated;
+}
+
+void PlacePiece() {
+    for (auto& block : current.shape) {
+        int x = current.pos.x + block.x;
+        int y = current.pos.y + block.y;
+        if (y >= 0) grid[y][x] = current.color;
+    }
 }
 
 void ClearLines() {
-    for (int y = rows - 1; y >= 0; y--) {
+    for (int y = HEIGHT - 1; y >= 0; y--) {
         bool full = true;
-        for (int x = 0; x < cols; x++) {
-            if (!grid[y][x]) { full = false; break; }
+        for (int x = 0; x < WIDTH; x++) {
+            if (!grid[y][x]) full = false;
         }
         if (full) {
             for (int yy = y; yy > 0; yy--) {
-                for (int x = 0; x < cols; x++) grid[yy][x] = grid[yy - 1][x];
+                for (int x = 0; x < WIDTH; x++) {
+                    grid[yy][x] = grid[yy - 1][x];
+                }
             }
-            for (int x = 0; x < cols; x++) grid[0][x] = 0;
-            score += 100;
+            for (int x = 0; x < WIDTH; x++) grid[0][x] = 0;
+            score += 10;
             y++;
         }
     }
 }
 
-void UpdateGame() {
-    if (gameOver) return;
+void SpawnPiece() {
+    current = nextTetromino;  // Use the stored next tetromino
+    current.pos = {3, 0};
+    nextTetromino = tetrominoes[rand() % 7]; // Generate a new next piece
 
-    static float fallTimer = 0;
-    fallTimer += GetFrameTime();
+    if (Collision(0, 0)) gameOver = true;
+}
 
-    if (IsKeyPressed(KEY_LEFT)) currentPiece.Move(-1, 0);
-    if (IsKeyPressed(KEY_RIGHT)) currentPiece.Move(1, 0);
-    if (IsKeyPressed(KEY_UP)) currentPiece.Rotate();
-    if (IsKeyDown(KEY_DOWN)) fallTimer += 0.05f;
-
-    if (fallTimer >= 0.5f) {
-        fallTimer = 0;
-        if (!currentPiece.CheckCollision(0, 1)) {
-            currentPiece.Move(0, 1);
-        } else {
-            currentPiece.Place();
-            ClearLines();
-            SpawnPiece();
-        }
+void DrawNextTetromino() {
+    mvprintw(3, WIDTH * 2 + 2, "Next:");
+    attron(COLOR_PAIR(nextTetromino.color));
+    for (auto& block : nextTetromino.shape) {
+        int x = WIDTH * 2 + 5 + block.x * 2; // Offset to the right
+        int y = 5 + block.y;                 // Place below the "Next" text
+        mvprintw(y, x, "[]");
     }
+    attroff(COLOR_PAIR(nextTetromino.color));
 }
 
 void DrawGame() {
-    ClearBackground(backgroundColor);
-
-    // Draw grid
-    for (int y = 0; y < rows; y++) {
-        for (int x = 0; x < cols; x++) {
-            DrawRectangleLines(x * blockSize, y * blockSize, blockSize, blockSize, gridColor);
-            if (grid[y][x]) DrawRectangle(x * blockSize, y * blockSize, blockSize, blockSize, DARKGRAY);
+    clear();
+    for (int y = 0; y < HEIGHT; y++) {
+        for (int x = 0; x < WIDTH; x++) {
+            if (grid[y][x]) {
+                attron(COLOR_PAIR(grid[y][x]));
+                mvprintw(y, x * 2, "[]");
+                attroff(COLOR_PAIR(grid[y][x]));
+            } else {
+                mvprintw(y, x * 2, " .");
+            }
         }
     }
 
-    // Draw current Tetromino
-    for (auto& block : currentPiece.shape.shape) {
-        int x = (currentPiece.pos.x + block.x) * blockSize;
-        int y = (currentPiece.pos.y + block.y) * blockSize;
-        DrawRectangle(x, y, blockSize, blockSize, currentPiece.shape.color);
+    attron(COLOR_PAIR(current.color));
+    for (auto& block : current.shape) {
+        int x = current.pos.x + block.x;
+        int y = current.pos.y + block.y;
+        if (y >= 0) mvprintw(y, x * 2, "[]");
     }
+    attroff(COLOR_PAIR(current.color));
 
-    // Draw Score & UI
-    DrawText("SCORE", screenWidth - 150, 20, 25, textColor);
-    DrawText(TextFormat("%d", score), screenWidth - 150, 50, 30, textColor);
+    mvprintw(0, WIDTH * 2 + 2, "Score: %d", score);
+    mvprintw(1, WIDTH * 2 + 2, "Level: %d", level);
 
-    // Draw next piece preview
-    DrawText("NEXT", screenWidth - 150, 100, 25, textColor);
-    for (auto& block : nextPiece.shape.shape) {
-        int x = (cols + block.x) * blockSize;
-        int y = (5 + block.y) * blockSize;
-        DrawRectangle(x, y, blockSize, blockSize, nextPiece.shape.color);
+    DrawNextTetromino();  // Display next tetromino
+
+    if (gameOver) {
+        attron(COLOR_PAIR(8));
+        mvprintw(10, 5, "GAME OVER!");
+        attroff(COLOR_PAIR(8));
     }
+    refresh();
+}
 
-    if (gameOver) DrawText("GAME OVER - Press ENTER", screenWidth / 4, screenHeight / 2, 20, RED);
+void UpdateGame() {
+    int ch = getch();
+    if (ch == 'a') MovePiece(-1, 0);
+    if (ch == 'd') MovePiece(1, 0);
+    if (ch == 's') MovePiece(0, 1);
+    if (ch == 'w') RotatePiece();
+    if (ch == ' ') HardDrop();
+    if (ch == 'q') gameOver = true;
+
+    time_t currentTime = time(0);
+    if (currentTime - lastDropTime >= 1) {
+        if (!Collision(0, 1)) {
+            MovePiece(0, 1);
+        } else {
+            PlacePiece();
+            ClearLines();
+            SpawnPiece();
+        }
+        lastDropTime = currentTime;
+    }
 }
 
 int main() {
-    InitWindow(screenWidth, screenHeight, "Tetris - Dark Night Theme");
-    SetTargetFPS(60);
-    nextPiece.shape = tetrominoes[GetRandomValue(0, 6)];
-    SpawnPiece();
-
-    while (!WindowShouldClose()) {
-        if (gameOver && IsKeyPressed(KEY_ENTER)) {
-            gameOver = false; score = 0;
-            for (auto& row : grid) for (int& cell : row) cell = 0;
-            SpawnPiece();
-        }
+    InitGame();
+    while (!gameOver) {
         UpdateGame();
-        BeginDrawing();
         DrawGame();
-        EndDrawing();
+        usleep(50000);
     }
-
-    CloseWindow();
+    endwin();
+    std::cout << "Game Over! Final Score: " << score << "\n";
     return 0;
 }
